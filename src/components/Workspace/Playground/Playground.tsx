@@ -11,6 +11,10 @@ import { problems } from "@/utils/problems";
 import { useRouter } from "next/router";
 import useLocalStorage from "@/hooks/useLocalStorage";
 
+/* ================= TYPES ================= */
+
+type Language = "javascript" | "java" | "python" | "cpp";
+
 type PlaygroundProps = {
 	problem: Problem;
 	setSuccess: React.Dispatch<React.SetStateAction<boolean>>;
@@ -26,6 +30,8 @@ export interface ISettings {
 	dropdownIsOpen: boolean;
 }
 
+/* ================= COMPONENT ================= */
+
 const Playground: React.FC<PlaygroundProps> = ({
 	problem,
 	setSuccess,
@@ -37,6 +43,13 @@ const Playground: React.FC<PlaygroundProps> = ({
 	const [activeTestCaseId, setActiveTestCaseId] = useState(0);
 	const [userCode, setUserCode] = useState(problem.starterCode);
 	const [hasSubmitted, setHasSubmitted] = useState(false);
+	const [isSolved, setIsSolved] = useState(false);
+
+	// 🌍 Language state
+	const [language, setLanguage] = useState<Language>("javascript");
+
+	const router = useRouter();
+	const { pid } = router.query;
 
 	const [fontSize] = useLocalStorage("lcc-fontSize", "16px");
 
@@ -46,56 +59,77 @@ const Playground: React.FC<PlaygroundProps> = ({
 		dropdownIsOpen: false,
 	});
 
-	const {
-		query: { pid },
-	} = useRouter();
+	/* ================= HELPERS ================= */
 
-	// ================= RUN (ALLOWED ALWAYS) =================
+	const isJS = language === "javascript";
+
+	const showLangComingSoon = () => {
+		toast.info("Execution for this language is coming soon.", {
+			position: "top-center",
+			theme: "dark",
+		});
+	};
+
+	const validateUserCode = (): string => {
+		const startIndex = userCode.indexOf(problem.starterFunctionName);
+		if (startIndex === -1) return "Please write your solution before running.";
+
+		const extracted = userCode.slice(startIndex);
+		const stripped = extracted
+			.replace(problem.starterFunctionName, "")
+			.replace(/[{}()\s;]/g, "");
+
+		if (!stripped) return "Please write your solution before running.";
+		return "";
+	};
+
+	/* ================= RUN ================= */
+
 	const handleRun = async () => {
+		if (!isJS) {
+			showLangComingSoon();
+			return;
+		}
+
 		try {
+			const validationError = validateUserCode();
+			if (validationError) {
+				toast.error(validationError, { theme: "dark" });
+				return;
+			}
+
 			const extractedCode = userCode.slice(
 				userCode.indexOf(problem.starterFunctionName)
 			);
-
 			const userFn = new Function(`return ${extractedCode}`)();
 
 			const currentProblemId = propProblemId || (pid as string);
-			if (!currentProblemId) throw new Error("Problem ID missing");
-
 			const problemData = problems[currentProblemId];
-			if (!problemData) throw new Error("Problem not found");
 
-			const handler = problemData.handlerFunction;
-			if (typeof handler !== "function") {
-				throw new Error("Invalid handler");
+			if (!problemData || typeof problemData.handlerFunction !== "function") {
+				throw new Error();
 			}
 
-			const success = handler(userFn);
+			const success = problemData.handlerFunction(userFn);
 
-			if (success) {
-				toast.success("All test cases passed!", {
-					position: "top-center",
-					theme: "dark",
-				});
-			} else {
-				toast.error("Test cases failed", {
-					position: "top-center",
-					theme: "dark",
-				});
-			}
-		} catch (error: any) {
-			toast.error(error?.message || "Execution error", {
-				position: "top-center",
-				theme: "dark",
-			});
+			success
+				? toast.success("All test cases passed!", { theme: "dark" })
+				: toast.error("Test cases failed. Try again.", { theme: "dark" });
+		} catch {
+			toast.error("Execution failed.", { theme: "dark" });
 		}
 	};
 
-	// ================= SUBMIT (ONCE IN INTERVIEW) =================
+	/* ================= SUBMIT ================= */
+
 	const handleSubmit = async () => {
+		if (!isJS) {
+			showLangComingSoon();
+			return;
+		}
+
 		if (isInterviewMode && hasSubmitted) {
 			toast.error("You can only submit once in interview mode", {
-				position: "top-center",
 				theme: "dark",
 			});
 			return;
@@ -104,44 +138,46 @@ const Playground: React.FC<PlaygroundProps> = ({
 		let success = false;
 
 		try {
+			const validationError = validateUserCode();
+			if (validationError) {
+				toast.error(validationError, { theme: "dark" });
+				return;
+			}
+
 			const extractedCode = userCode.slice(
 				userCode.indexOf(problem.starterFunctionName)
 			);
-
 			const userFn = new Function(`return ${extractedCode}`)();
 
 			const currentProblemId = propProblemId || (pid as string);
-			if (!currentProblemId) throw new Error("Problem ID missing");
-
 			const problemData = problems[currentProblemId];
-			if (!problemData) throw new Error("Problem not found");
 
-			const handler = problemData.handlerFunction;
-			if (typeof handler !== "function") {
-				throw new Error("Invalid handler");
+			if (!problemData || typeof problemData.handlerFunction !== "function") {
+				throw new Error();
 			}
 
-			success = handler(userFn);
+			success = problemData.handlerFunction(userFn);
 
 			if (success) {
-				toast.success("Submitted successfully!", {
-					position: "top-center",
-					theme: "dark",
-				});
+				toast.success("Submitted successfully!", { theme: "dark" });
 				setSuccess(true);
 				setSolved(true);
-				setTimeout(() => setSuccess(false), 4000);
+				setIsSolved(true);
+
+				setTimeout(() => {
+					router.push({
+						pathname: "/build/success",
+						query: {
+							pid: propProblemId || pid,
+							title: problem.title,
+						},
+					});
+				}, 500);
 			} else {
-				toast.error("Submission failed", {
-					position: "top-center",
-					theme: "dark",
-				});
+				toast.error("Submission failed.", { theme: "dark" });
 			}
-		} catch (error: any) {
-			toast.error(error?.message || "Execution error", {
-				position: "top-center",
-				theme: "dark",
-			});
+		} catch {
+			toast.error("Execution failed.", { theme: "dark" });
 		}
 
 		if (isInterviewMode) {
@@ -150,29 +186,92 @@ const Playground: React.FC<PlaygroundProps> = ({
 		}
 	};
 
-	// ================= LOAD SAVED CODE =================
+	/* ================= LOAD CODE ================= */
+
 	useEffect(() => {
 		const currentProblemId = propProblemId || (pid as string);
 		if (!currentProblemId) return;
 
-		const saved = localStorage.getItem(`code-${currentProblemId}`);
+		const saved = localStorage.getItem(`code-${currentProblemId}-${language}`);
 		setUserCode(saved ? JSON.parse(saved) : problem.starterCode);
-	}, [pid, propProblemId, problem.starterCode]);
+
+		setIsSolved(false);
+		setHasSubmitted(false);
+	}, [pid, propProblemId, problem.starterCode, language]);
 
 	const onChange = (value: string) => {
 		setUserCode(value);
 		const currentProblemId = propProblemId || (pid as string);
 		if (currentProblemId) {
-			localStorage.setItem(`code-${currentProblemId}`, JSON.stringify(value));
+			localStorage.setItem(
+				`code-${currentProblemId}-${language}`,
+				JSON.stringify(value)
+			);
 		}
 	};
+
+	/* ================= NEXT PROBLEM ================= */
+
+	const handleNextProblem = () => {
+		const nextOrder = problem.order + 1;
+		const next = Object.values(problems).find(
+			(p) => p.order === nextOrder
+		);
+		if (next) router.push(`/problems/${next.id}`);
+		else router.push("/build");
+	};
+
+	/* ================= UI ================= */
 
 	return (
 		<div className="flex flex-col bg-dark-layer-1 h-full relative">
 			<PreferenceNav settings={settings} setSettings={setSettings} />
 
+			{/* SOLVED STRIP (PRACTICE MODE) */}
+			{isSolved && !isInterviewMode && (
+				<div className="bg-dark-fill-2 border-b border-dark-layer-2 px-6 py-4 flex items-center justify-between">
+					<div className="text-green-400 font-medium">✓ Solved</div>
+					<div className="flex gap-4">
+						<button
+							onClick={handleNextProblem}
+							className="text-brand-orange hover:underline"
+						>
+							Next Problem →
+						</button>
+						<button
+							onClick={() => router.push("/build")}
+							className="text-gray-400 hover:text-white"
+						>
+							Back to Build
+						</button>
+					</div>
+				</div>
+			)}
+
+			{/* LANGUAGE BAR */}
+			<div className="flex gap-3 px-5 py-2 border-b border-dark-layer-2 text-sm">
+				{[
+					{ id: "javascript", label: "JavaScript" },
+					{ id: "java", label: "Java" },
+					{ id: "python", label: "Python" },
+					{ id: "cpp", label: "C++" },
+				].map((lang) => (
+					<button
+						key={lang.id}
+						onClick={() => setLanguage(lang.id as Language)}
+						className={`px-3 py-1 rounded-md ${
+							language === lang.id
+								? "bg-dark-fill-2 text-white"
+								: "text-gray-400 hover:text-white"
+						}`}
+					>
+						{lang.label}
+					</button>
+				))}
+			</div>
+
 			<Split
-				className="h-[calc(100vh-94px)]"
+				className="h-[calc(100vh-130px)]"
 				direction="vertical"
 				sizes={[60, 40]}
 				minSize={60}
@@ -182,14 +281,16 @@ const Playground: React.FC<PlaygroundProps> = ({
 						value={userCode}
 						theme={vscodeDark}
 						onChange={onChange}
-						extensions={[javascript()]}
+						extensions={isJS ? [javascript()] : []}
 						style={{ fontSize: settings.fontSize }}
-						readOnly={isInterviewMode && hasSubmitted}
+						readOnly={isSolved || (isInterviewMode && hasSubmitted)}
 					/>
 				</div>
 
 				<div className="px-5 overflow-auto">
-					<div className="text-sm font-medium text-white mt-2">Testcases</div>
+					<div className="text-sm font-medium text-white mt-2">
+						Testcases
+					</div>
 
 					<div className="flex mt-2">
 						{problem.examples.map((example, index) => (
