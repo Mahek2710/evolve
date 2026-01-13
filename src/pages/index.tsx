@@ -3,10 +3,12 @@ import ProblemsTable from "@/components/ProblemsTable/ProblemsTable";
 import Topbar from "@/components/Topbar/Topbar";
 import useHasMounted from "@/hooks/useHasMounted";
 import { useState } from "react";
+import { useRouter } from "next/router";
 
 export default function Home() {
 	const [loadingProblems, setLoadingProblems] = useState(true);
 	const hasMounted = useHasMounted();
+	const router = useRouter();
 
 	if (!hasMounted) return null;
 
@@ -21,8 +23,18 @@ export default function Home() {
 
 				{/* Heading */}
 				<h1 className="text-xl text-center text-gray-400 font-medium uppercase mt-8 mb-10">
-					“ Quality over Quantity ”
+					" Quality over Quantity "
 				</h1>
+
+				{/* Start Interview Button */}
+				<div className="flex justify-center mb-8">
+					<button
+						onClick={() => router.push("/interview/setup")}
+						className="bg-brand-orange text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-orange-600 transition duration-300 ease-in-out shadow-lg hover:shadow-xl"
+					>
+						Start Interview
+					</button>
+				</div>
 
 				{/* TABLE WRAPPER */}
 				<div className="relative overflow-x-auto mx-auto pb-10">

@@ -1,7 +1,5 @@
-# LeetCode Clone Youtube Tutorial
+# evolve
 
-### Built With React, NextJS, TypeScript, TailwindCSS, Firebase
+A curated interview preparation and problem-solving platform focused on quality over quantity.
 
-# [Demo](https://youtu.be/igqiduZR-Gg)
-
-![Screenshot of App](https://i.ibb.co/b3XDkdN/Full-Stack-1.png)
+Built with Next.js, TypeScript, TailwindCSS, and Firebase.

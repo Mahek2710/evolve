@@ -15,6 +15,9 @@ type PlaygroundProps = {
 	problem: Problem;
 	setSuccess: React.Dispatch<React.SetStateAction<boolean>>;
 	setSolved: React.Dispatch<React.SetStateAction<boolean>>;
+	isInterviewMode?: boolean;
+	onSubmissionComplete?: (isCorrect: boolean) => void;
+	problemId?: string;
 };
 
 export interface ISettings {
@@ -23,14 +26,22 @@ export interface ISettings {
 	dropdownIsOpen: boolean;
 }
 
-const Playground: React.FC<PlaygroundProps> = ({ problem, setSuccess, setSolved }) => {
-	const [activeTestCaseId, setActiveTestCaseId] = useState<number>(0);
-	let [userCode, setUserCode] = useState<string>(problem.starterCode);
+const Playground: React.FC<PlaygroundProps> = ({
+	problem,
+	setSuccess,
+	setSolved,
+	isInterviewMode = false,
+	onSubmissionComplete,
+	problemId: propProblemId,
+}) => {
+	const [activeTestCaseId, setActiveTestCaseId] = useState(0);
+	const [userCode, setUserCode] = useState(problem.starterCode);
+	const [hasSubmitted, setHasSubmitted] = useState(false);
 
 	const [fontSize] = useLocalStorage("lcc-fontSize", "16px");
 
 	const [settings, setSettings] = useState<ISettings>({
-		fontSize: fontSize,
+		fontSize,
 		settingsModalIsOpen: false,
 		dropdownIsOpen: false,
 	});
@@ -39,62 +50,125 @@ const Playground: React.FC<PlaygroundProps> = ({ problem, setSuccess, setSolved 
 		query: { pid },
 	} = useRouter();
 
-	// 🔹 SUBMIT HANDLER (NO FIRESTORE)
-	const handleSubmit = async () => {
+	// ================= RUN (ALLOWED ALWAYS) =================
+	const handleRun = async () => {
 		try {
-			userCode = userCode.slice(userCode.indexOf(problem.starterFunctionName));
-			const cb = new Function(`return ${userCode}`)();
-			const handler = problems[pid as string].handlerFunction;
+			const extractedCode = userCode.slice(
+				userCode.indexOf(problem.starterFunctionName)
+			);
 
-			if (typeof handler === "function") {
-				const success = handler(cb);
-				if (success) {
-					toast.success("Congrats! All tests passed!", {
-						position: "top-center",
-						autoClose: 3000,
-						theme: "dark",
-					});
-					setSuccess(true);
-					setSolved(true);
+			const userFn = new Function(`return ${extractedCode}`)();
 
-					setTimeout(() => {
-						setSuccess(false);
-					}, 4000);
-				}
+			const currentProblemId = propProblemId || (pid as string);
+			if (!currentProblemId) throw new Error("Problem ID missing");
+
+			const problemData = problems[currentProblemId];
+			if (!problemData) throw new Error("Problem not found");
+
+			const handler = problemData.handlerFunction;
+			if (typeof handler !== "function") {
+				throw new Error("Invalid handler");
 			}
-		} catch (error: any) {
-			if (
-				error.message?.startsWith(
-					"AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:"
-				)
-			) {
-				toast.error("Oops! One or more test cases failed", {
+
+			const success = handler(userFn);
+
+			if (success) {
+				toast.success("All test cases passed!", {
 					position: "top-center",
-					autoClose: 3000,
 					theme: "dark",
 				});
 			} else {
-				toast.error(error.message || "Execution error", {
+				toast.error("Test cases failed", {
 					position: "top-center",
-					autoClose: 3000,
 					theme: "dark",
 				});
 			}
+		} catch (error: any) {
+			toast.error(error?.message || "Execution error", {
+				position: "top-center",
+				theme: "dark",
+			});
 		}
 	};
 
+	// ================= SUBMIT (ONCE IN INTERVIEW) =================
+	const handleSubmit = async () => {
+		if (isInterviewMode && hasSubmitted) {
+			toast.error("You can only submit once in interview mode", {
+				position: "top-center",
+				theme: "dark",
+			});
+			return;
+		}
+
+		let success = false;
+
+		try {
+			const extractedCode = userCode.slice(
+				userCode.indexOf(problem.starterFunctionName)
+			);
+
+			const userFn = new Function(`return ${extractedCode}`)();
+
+			const currentProblemId = propProblemId || (pid as string);
+			if (!currentProblemId) throw new Error("Problem ID missing");
+
+			const problemData = problems[currentProblemId];
+			if (!problemData) throw new Error("Problem not found");
+
+			const handler = problemData.handlerFunction;
+			if (typeof handler !== "function") {
+				throw new Error("Invalid handler");
+			}
+
+			success = handler(userFn);
+
+			if (success) {
+				toast.success("Submitted successfully!", {
+					position: "top-center",
+					theme: "dark",
+				});
+				setSuccess(true);
+				setSolved(true);
+				setTimeout(() => setSuccess(false), 4000);
+			} else {
+				toast.error("Submission failed", {
+					position: "top-center",
+					theme: "dark",
+				});
+			}
+		} catch (error: any) {
+			toast.error(error?.message || "Execution error", {
+				position: "top-center",
+				theme: "dark",
+			});
+		}
+
+		if (isInterviewMode) {
+			setHasSubmitted(true);
+			onSubmissionComplete?.(success);
+		}
+	};
+
+	// ================= LOAD SAVED CODE =================
 	useEffect(() => {
-		const code = localStorage.getItem(`code-${pid}`);
-		setUserCode(code ? JSON.parse(code) : problem.starterCode);
-	}, [pid, problem.starterCode]);
+		const currentProblemId = propProblemId || (pid as string);
+		if (!currentProblemId) return;
+
+		const saved = localStorage.getItem(`code-${currentProblemId}`);
+		setUserCode(saved ? JSON.parse(saved) : problem.starterCode);
+	}, [pid, propProblemId, problem.starterCode]);
 
 	const onChange = (value: string) => {
 		setUserCode(value);
-		localStorage.setItem(`code-${pid}`, JSON.stringify(value));
+		const currentProblemId = propProblemId || (pid as string);
+		if (currentProblemId) {
+			localStorage.setItem(`code-${currentProblemId}`, JSON.stringify(value));
+		}
 	};
 
 	return (
-		<div className="flex flex-col bg-dark-layer-1 relative overflow-x-hidden">
+		<div className="flex flex-col bg-dark-layer-1 h-full relative">
 			<PreferenceNav settings={settings} setSettings={setSettings} />
 
 			<Split
@@ -103,56 +177,56 @@ const Playground: React.FC<PlaygroundProps> = ({ problem, setSuccess, setSolved 
 				sizes={[60, 40]}
 				minSize={60}
 			>
-				<div className="w-full overflow-auto">
+				<div className="overflow-auto">
 					<CodeMirror
 						value={userCode}
 						theme={vscodeDark}
 						onChange={onChange}
 						extensions={[javascript()]}
 						style={{ fontSize: settings.fontSize }}
+						readOnly={isInterviewMode && hasSubmitted}
 					/>
 				</div>
 
-				<div className="w-full px-5 overflow-auto">
-					<div className="flex h-10 items-center space-x-6">
-						<div className="relative flex h-full flex-col justify-center cursor-pointer">
-							<div className="text-sm font-medium leading-5 text-white">Testcases</div>
-							<hr className="absolute bottom-0 h-0.5 w-full rounded-full border-none bg-white" />
-						</div>
-					</div>
+				<div className="px-5 overflow-auto">
+					<div className="text-sm font-medium text-white mt-2">Testcases</div>
 
-					<div className="flex">
+					<div className="flex mt-2">
 						{problem.examples.map((example, index) => (
 							<div
-								className="mr-2 items-start mt-2"
 								key={example.id}
 								onClick={() => setActiveTestCaseId(index)}
+								className={`mr-2 px-4 py-1 rounded-lg cursor-pointer ${
+									activeTestCaseId === index
+										? "bg-dark-fill-2 text-white"
+										: "bg-dark-fill-3 text-gray-400"
+								}`}
 							>
-								<div
-									className={`font-medium inline-flex bg-dark-fill-3 hover:bg-dark-fill-2 rounded-lg px-4 py-1 cursor-pointer
-									${activeTestCaseId === index ? "text-white" : "text-gray-500"}`}
-								>
-									Case {index + 1}
-								</div>
+								Case {index + 1}
 							</div>
 						))}
 					</div>
 
-					<div className="font-semibold my-4">
-						<p className="text-sm font-medium mt-4 text-white">Input:</p>
-						<div className="w-full rounded-lg px-3 py-[10px] bg-dark-fill-3 text-white mt-2">
+					<div className="mt-4 text-white text-sm">
+						<p className="font-medium">Input:</p>
+						<div className="bg-dark-fill-3 p-2 rounded mt-1">
 							{problem.examples[activeTestCaseId].inputText}
 						</div>
 
-						<p className="text-sm font-medium mt-4 text-white">Output:</p>
-						<div className="w-full rounded-lg px-3 py-[10px] bg-dark-fill-3 text-white mt-2">
+						<p className="font-medium mt-3">Output:</p>
+						<div className="bg-dark-fill-3 p-2 rounded mt-1">
 							{problem.examples[activeTestCaseId].outputText}
 						</div>
 					</div>
 				</div>
 			</Split>
 
-			<EditorFooter handleSubmit={handleSubmit} />
+			<EditorFooter
+				onRun={handleRun}
+				onSubmit={handleSubmit}
+				isInterviewMode={isInterviewMode}
+				hasSubmitted={hasSubmitted}
+			/>
 		</div>
 	);
 };
