@@ -25,7 +25,11 @@ type PlaygroundProps = {
 	isInterviewMode?: boolean;
 	onSubmissionComplete?: (isCorrect: boolean) => void;
 	problemId?: string;
+
+	// ✅ ADD THIS
+	onFirstRun?: () => void;
 };
+
 
 export interface ISettings {
 	fontSize: string;

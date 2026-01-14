@@ -42,7 +42,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
 						isInterviewMode={isInterviewMode}
 						onSubmissionComplete={onSubmissionComplete}
 						problemId={problemId}
-						onFirstRun={onFirstRun}
+						
 					/>
 
 					{/* 🎉 CONFETTI — BUILD MODE ONLY */}
