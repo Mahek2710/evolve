@@ -57,21 +57,26 @@ export default ProblemsTable;
 function useGetProblems(
 	setLoadingProblems: React.Dispatch<React.SetStateAction<boolean>>
 ) {
-	const [problems, setProblems] = useState<DBProblem[]>([]);
+	const [problems, setProblems] = useState<
+		(DBProblem & { category: string; difficulty: string })[]
+	>([]);
 
 	useEffect(() => {
 		setLoadingProblems(true);
 
-		const tmp: DBProblem[] = Object.keys(localProblems)
+		const tmp = Object.keys(localProblems)
 			.map((key) => {
-				// ✅ remove existing `id` before spreading to avoid TS duplicate error
-				const { id: _ignored, ...rest } = localProblems[key];
+				// cast to allow category & difficulty
+				const { id: _ignored, ...rest } = localProblems[key] as DBProblem & {
+					category?: string;
+					difficulty?: string;
+				};
 
 				return {
 					...rest,
 					id: key,
-					category: rest.category || "General",
-					difficulty: rest.difficulty || "Easy",
+					category: rest.category ?? "General",
+					difficulty: rest.difficulty ?? "Easy",
 					likes: 0,
 					dislikes: 0,
 				};
