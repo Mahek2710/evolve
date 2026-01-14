@@ -1,144 +1,135 @@
-# **evolve**
+# 🚀 evolve - Interview & Coding Practice Platform
 
-*A focused platform for problem-solving and interview readiness*
+Evolve is a web-based platform designed to help students and developers **practice coding problems** and **simulate real technical interviews** with structured workflows, timing, and communication checkpoints.
 
----
-
-## **Overview**
-
-**Evolve** is a web-based coding platform designed to bridge the gap between casual practice and real technical interviews.
-It offers two distinct modes—**Build** and **Perform**—to help users improve problem-solving skills and evaluate interview readiness under realistic constraints.
-
-Unlike traditional coding platforms, Evolve emphasizes **decision-making, time management, and communication**, not just correct answers.
+Built for hackathons, interview preparation, and skill assessment — **beyond just solving problems.**
 
 ---
 
-## **Key Modes**
+## 🌟 Key Features
 
-### **1. Build (Practice Mode)**
-
-Build is a structured problem-solving environment focused on skill development and consistency.
-
-**What it offers:**
-
-* Curated set of coding problems with increasing difficulty
-* Real-time code execution (JavaScript supported)
-* Persistent code storage per problem
-* Test case visibility for better debugging
-* Problem completion tracking
-* Smooth navigation between problems
-
-**Purpose:**
-To help users practice deliberately, refine logic, and build confidence without time pressure.
+### 🧠 Build Mode (Practice)
+- Solve DSA problems in an interactive code editor
+- Real-time test case execution
+- Clear success feedback with visual celebration
+- Retry problems or return to problem list
+- Progress-focused learning environment
 
 ---
 
-### **2. Perform (Interview Mode)**
+### 🎯 Interview Mode (Core Highlight)
+A **realistic interview simulation** designed to mimic actual technical interviews.
 
-Perform simulates a real technical interview experience.
+#### ⏱️ Timed Interview Sessions
+- Configurable interview duration
+- Live countdown timer
+- Auto-end when time expires
 
-**What it offers:**
-
-* Timed interview sessions
-* Persona-based interviewer setup (Product company, Startup, etc.)
-* Sequential problem flow
-* One-time submission constraint per problem
-* Real-time timer tracking
-* Automated interview scoring
-
-**Purpose:**
-To evaluate how users perform under pressure—mirroring real interview conditions.
+#### 🧩 Multi-Problem Interview Flow
+- Automatically selects:
+  - problems based on difficulty depending upon the role applied
+- Seamless transition between problems
+- Per-problem time tracking
 
 ---
 
-## **Interview Evaluation & Feedback**
+### 🗣️ Communication Evaluation (Unique Feature)
+Evolve evaluates **how candidates communicate**, not just whether they get the answer.
 
-After each interview session, users receive a detailed feedback report including:
+#### Structured Communication Checkpoints:
+1. **Understanding** — Explain the problem in your own words  
+2. **Approach & Reasoning** — Describe your strategy and logic  
+3. **Reflection** — Discuss trade-offs, optimizations, and alternatives  
 
-* **Problem-wise results** (Passed / Not Submitted / Failed)
-* **Time spent per problem**
-* **Correctness score**
-* **Time management score**
-* **Code quality score**
-* **Communication score** (via interviewer interruptions)
-* **Overall performance score**
-
-This ensures feedback goes beyond just “right or wrong.”
-
----
-
-## **Core Features**
-
-* **Dual-mode architecture**: Separate workflows for practice and interviews
-* **Local persistence**: User code and session state stored reliably
-* **Smooth transitions**: Clean navigation and UI transitions
-* **Minimal, distraction-free editor**
-* **Keyboard shortcuts for faster navigation**
-* **Full-screen coding support**
-* **Interview session recovery** (in case of refresh or interruption)
+All responses are:
+- Stored per problem
+- Displayed transparently in feedback
+- Not auto-scored numerically (to avoid unfair judgment)
 
 ---
 
-## **Google Technologies Used**
-
-* **Firebase Authentication**
-
-  * Google OAuth for secure sign-in
-* **Firebase Firestore**
-
-  * Stores interview sessions, problem states, and feedback
-* **Firebase Hosting**
-
-  * Deploys the application with global availability
-* **Google Cloud Infrastructure**
-
-  * Ensures scalability and reliability
+### 🤖 AI-Assisted Feedback (Optional)
+- Uses **Google Gemini** to generate qualitative feedback on communication
+- Provides:
+  - Overall assessment
+  - Strengths
+  - Areas of improvement
+  - Interview tips
+- No code correctness judgment by AI
+- Designed to assist human review, not replace it
 
 ---
 
-## **Why Evolve Is Different**
-
-* Separates **practice** and **performance** instead of mixing them
-* Simulates interview pressure realistically
-* Evaluates **communication and reasoning**, not just code
-* Provides structured feedback instead of generic success/failure
-* Designed for interview readiness, not leaderboard chasing
-
----
-
-## **Future Enhancements**
-
-### **Build Mode**
-
-* Multi-language execution support (Java, Python, C++)
-* Topic-based problem filters
-* Adaptive problem recommendations
-* Optional guided hints after failed attempts
-
-### **Perform Mode**
-
-* Richer communication analysis
-* Multiple interviewer interruptions per problem
-* Difficulty adjustment based on performance
-* Session replay with timeline view
-
-### **Platform-Level**
-
-* Analytics dashboard for long-term progress
-* Personalized practice plans
-* Exportable interview reports
+### 📊 Interview Feedback Dashboard
+After the interview:
+- Persona summary
+- Total time used
+- Problem-wise results
+- Candidate-written communication responses
+- Optional AI-generated communication analysis
+- Clear call-to-action to retry or start a new interview
 
 ---
 
-## **Target Users**
+## 🛠️ Tech Stack
 
-* Students preparing for technical interviews
-* Developers transitioning to product-based roles
-* Anyone seeking structured interview practice
+### Frontend
+- **Next.js** (React Framework)
+- **TypeScript**
+- **Tailwind CSS**
+- **Framer Motion** (smooth transitions)
+- **CodeMirror** (code editor)
+
+### Backend / Platform
+- **Firebase Authentication**
+- **Firebase Firestore**
+- **LocalStorage** (session persistence)
+
+### Google Technologies Used
+- **Firebase** — Authentication & data storage
+- **Google Gemini (Generative AI)** — Communication feedback generation
 
 ---
 
-## **Conclusion**
+## 🧪 Problem Evaluation
+- Custom handler functions per problem
+- Secure execution for JavaScript solutions
+- Language selector UI (JS supported; others marked “coming soon”)
 
-Evolve is not just a coding platform—it’s an **interview readiness system**.
-By separating learning from evaluation, it enables users to practice smarter and perform better when it matters most.
+---
+
+## 🎯 Why Evolve?
+Most platforms only test **correctness**.
+
+Evolve focuses on:
+- Problem solving
+- Time management
+- Communication clarity
+- Interview readiness
+
+It’s not just about **getting the answer** — it’s about **explaining it like a real interview**.
+
+---
+
+## 👥 Team
+- **Mahek Hingorani**
+- **Navya Navya Rangwani**
+
+Built as part of a **Google Developer Group (GDG) Hackathon** project.
+
+---
+
+## 🚧 Future Scope
+- Multi-language execution (Java, Python, C++)
+- Interviewer dashboard
+- Resume-based interview personalization
+- Deeper AI-assisted insights using Vertex AI
+
+---
+
+## 📄 License
+This project is built for educational and hackathon purposes.
+
+---
+
+⭐ If you like the idea, feel free to star the repository!
