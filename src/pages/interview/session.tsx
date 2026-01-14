@@ -1,10 +1,9 @@
 import Head from "next/head";
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/router";
 import Workspace from "@/components/Workspace/Workspace";
 import InterviewTimer from "@/components/Interview/InterviewTimer";
-import InterruptionModal from "@/components/Interview/InterruptionModal";
 import useHasMounted from "@/hooks/useHasMounted";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { problems } from "@/utils/problems";
 import { Problem } from "@/utils/types/problem";
 import {
@@ -14,8 +13,6 @@ import {
 	clearSession,
 	updateProblemStatus,
 	moveToNextProblem,
-	saveCommunicationResponse,
-	getCommunicationProgress,
 } from "@/utils/interview/sessionManager";
 import { InterviewSession } from "@/utils/interview/types";
 
@@ -26,186 +23,125 @@ export default function InterviewSessionPage() {
 	const [session, setSession] = useState<InterviewSession | null>(null);
 	const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
 
-	const [timeRemaining, setTimeRemaining] = useState(0);
 	const [timerRunning, setTimerRunning] = useState(false);
+	const [timeRemaining, setTimeRemaining] = useState(0);
 
-	const [activeQuestion, setActiveQuestion] =
-		useState<"understanding" | "approach" | "reflection" | null>(null);
-
-	const [hasRunOnce, setHasRunOnce] = useState(false);
-
-	/* ================= FINISH ================= */
-	const finishInterview = useCallback(
-		(finalSession: InterviewSession) => {
-			const totalTimeUsed = finalSession.problems.reduce(
-				(sum, p) => sum + (p.timeSpent || 0),
-				0
-			);
-
-			localStorage.setItem(
-				"interviewResults",
-				JSON.stringify({
-					session: finalSession,
-					endTime: Date.now(),
-					totalTimeUsed,
-				})
-			);
-
-			clearSession();
-			router.replace("/interview/feedback");
-		},
-		[router]
-	);
-
-	/* ================= TIME UP ================= */
-	const handleTimeUp = useCallback(
-		(s: InterviewSession) => {
-			const updated = structuredClone(s);
-
-			updated.problems.forEach((p) => {
-				if (p.status !== "completed") {
-					p.status = "completed";
-					p.passed = false;
-					p.endTime = Date.now();
-				}
-			});
-
-			saveSession(updated);
-			finishInterview(updated);
-		},
-		[finishInterview]
-	);
-
-	/* ================= LOAD PROBLEM ================= */
-	const loadProblem = useCallback(
-		(s: InterviewSession) => {
-			const idx = s.currentProblemIndex;
-			const p = s.problems[idx];
-			if (!p) {
-				finishInterview(s);
-				return;
-			}
-
-			const full = problems[p.id];
-			if (!full) {
-				finishInterview(s);
-				return;
-			}
-
-			setCurrentProblem(full);
-			setHasRunOnce(false);
-
-			const progress = getCommunicationProgress(s, idx);
-			if (!progress.understandingDone) {
-				setActiveQuestion("understanding");
-			}
-		},
-		[finishInterview]
-	);
-
-	/* ================= INIT ================= */
+	/* ================= INITIAL LOAD ================= */
 	useEffect(() => {
-		let s = loadSession();
+		let currentSession = loadSession();
 
-		if (!s) {
+		if (!currentSession) {
 			const cfg = localStorage.getItem("interviewConfig");
 			if (!cfg) {
-				router.replace("/interview/setup");
+				router.push("/interview/setup");
 				return;
 			}
-			const parsed = JSON.parse(cfg);
-			s = createInterviewSession(parsed.persona, parsed.duration);
-			saveSession(s);
+
+			const { persona, duration } = JSON.parse(cfg);
+			currentSession = createInterviewSession(persona, duration);
+			saveSession(currentSession);
 		}
 
-		setSession(s);
-		loadProblem(s);
+		setSession(currentSession);
+		loadCurrentProblem(currentSession);
 
-		const totalSeconds = s.duration * 60;
-		const elapsed = Math.floor((Date.now() - s.startTime) / 1000);
-		setTimeRemaining(Math.max(0, totalSeconds - elapsed));
+		const durationSec = currentSession.duration * 60;
+		const elapsed = Math.floor(
+			(Date.now() - currentSession.startTime) / 1000
+		);
+
+		setTimeRemaining(Math.max(0, durationSec - elapsed));
 		setTimerRunning(true);
 
-		const interval = setInterval(() => {
+		const timer = setInterval(() => {
 			setTimeRemaining((t) => {
 				if (t <= 1) {
-					handleTimeUp(s!);
+					handleTimeUp(currentSession!);
 					return 0;
 				}
 				return t - 1;
 			});
 		}, 1000);
 
-		return () => clearInterval(interval);
-	}, [router, loadProblem, handleTimeUp]);
+		return () => clearInterval(timer);
+	}, []);
 
-	/* ================= APPROACH POPUP ================= */
-	useEffect(() => {
-		if (!session || hasRunOnce) return;
-
-		const fortyPercent = session.duration * 60 * 0.6;
-		if (timeRemaining <= fortyPercent) {
-			const progress = getCommunicationProgress(
-				session,
-				session.currentProblemIndex
-			);
-			if (!progress.approachDone) {
-				setActiveQuestion("approach");
-			}
+	/* ================= LOAD PROBLEM ================= */
+	const loadCurrentProblem = (s: InterviewSession) => {
+		const p = s.problems[s.currentProblemIndex];
+		if (!p) {
+			finishInterview(s);
+			return;
 		}
-	}, [timeRemaining, session, hasRunOnce]);
+
+		const problem = problems[p.id];
+		setCurrentProblem(problem);
+	};
+
+	/* ================= TIME UP ================= */
+	const handleTimeUp = (s: InterviewSession) => {
+		const updated = { ...s };
+
+		updated.problems = updated.problems.map((p) => ({
+			...p,
+			status: "completed",
+			passed: false,
+			endTime: Date.now(),
+		}));
+
+		saveSession(updated);
+		finishInterview(updated);
+	};
 
 	/* ================= SUBMIT ================= */
 	const handleSubmissionComplete = (isCorrect: boolean) => {
 		if (!session) return;
 
 		const idx = session.currentProblemIndex;
-		const p = session.problems[idx];
+		const prob = session.problems[idx];
 
-		const timeSpent = Math.floor((Date.now() - p.startTime) / 1000);
-
-		let updated = updateProblemStatus(session, idx, {
+		const updated = updateProblemStatus(session, idx, {
 			status: "completed",
 			passed: isCorrect,
-			timeSpent,
+			timeSpent: Math.floor(
+				(Date.now() - prob.startTime) / 1000
+			),
 			endTime: Date.now(),
 		});
 
-		saveSession(updated);
+		const nextIndex = idx + 1;
 
-		const progress = getCommunicationProgress(updated, idx);
-		if (!progress.reflectionDone) {
-			setSession(updated);
-			setActiveQuestion("reflection");
-			return;
-		}
-
-		const next = idx + 1;
-		if (next < updated.problems.length) {
+		if (nextIndex < updated.problems.length) {
 			const moved = moveToNextProblem(updated);
 			saveSession(moved);
 			setSession(moved);
-			loadProblem(moved);
+			loadCurrentProblem(moved);
 		} else {
 			finishInterview(updated);
 		}
 	};
 
-	/* ================= COMMUNICATION ================= */
-	const handleCommunicationSubmit = (response: string) => {
-		if (!session || !activeQuestion) return;
-
-		const idx = session.currentProblemIndex;
-		const updated = saveCommunicationResponse(
-			session,
-			idx,
-			activeQuestion,
-			response
+	/* ================= FINISH (CRITICAL FIX) ================= */
+	const finishInterview = (finalSession: InterviewSession) => {
+		const totalTimeUsed = Math.floor(
+			(Date.now() - finalSession.startTime) / 1000
 		);
 
-		saveSession(updated);
-		setSession(updated);
-		setActiveQuestion(null);
+		// ✅ STORE RESULTS (DO NOT DELETE)
+		localStorage.setItem(
+			"interviewResults",
+			JSON.stringify({
+				session: finalSession,
+				endTime: Date.now(),
+				totalTimeUsed,
+			})
+		);
+
+		// ❌ ONLY clear live session
+		clearSession();
+
+		// ✅ PUSH (not replace)
+		router.push("/interview/feedback");
 	};
 
 	if (!hasMounted || !session || !currentProblem) return null;
@@ -213,28 +149,15 @@ export default function InterviewSessionPage() {
 	return (
 		<>
 			<Head>
-				<title>Interview Session - evolve</title>
+				<title>Interview Session · evolve</title>
 			</Head>
-
-			{activeQuestion && (
-				<InterruptionModal
-					isOpen
-					question={
-						activeQuestion === "understanding"
-							? "Explain your understanding of the problem."
-							: activeQuestion === "approach"
-							? "What approach are you taking and why?"
-							: "Reflect on your solution and trade-offs."
-					}
-					onSubmit={handleCommunicationSubmit}
-				/>
-			)}
 
 			<nav className="w-full bg-dark-layer-1 border-b border-dark-layer-2">
 				<div className="h-[64px] px-6 flex justify-between items-center">
 					<div className="text-white font-medium">
 						Interview: {session.persona} | Problem{" "}
-						{session.currentProblemIndex + 1}/{session.problems.length}
+						{session.currentProblemIndex + 1}/
+						{session.problems.length}
 					</div>
 					<InterviewTimer
 						durationMinutes={session.duration}
@@ -250,7 +173,6 @@ export default function InterviewSessionPage() {
 				isInterviewMode
 				onSubmissionComplete={handleSubmissionComplete}
 				problemId={session.problems[session.currentProblemIndex].id}
-				onFirstRun={() => setHasRunOnce(true)}
 			/>
 		</>
 	);
