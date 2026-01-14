@@ -26,7 +26,13 @@ export type StarterFunctionNameMap = {
 
 /* ================= PROBLEM TYPES ================= */
 
-// Local problem data (used in editor / execution)
+/**
+ * Base problem definition
+ * Used by:
+ * - localProblems
+ * - editor
+ * - execution engine
+ */
 export type Problem = {
 	id: string;
 	title: string;
@@ -35,26 +41,33 @@ export type Problem = {
 	constraints: string;
 	order: number;
 
-	// ✅ Backward compatible:
+	// Backward compatible:
 	// can be string (JS only) OR multi-language map
 	starterCode: string | StarterCodeMap;
 
-	// ✅ JS handler remains same
+	// JS handler OR string reference
 	handlerFunction: ((fn: any) => boolean) | string;
 
-	// ✅ Backward compatible
+	// Backward compatible
 	starterFunctionName: string | StarterFunctionNameMap;
+
+	// ✅ OPTIONAL metadata (may exist in localProblems)
+	category?: string;
+	difficulty?: "Easy" | "Medium" | "Hard";
 };
 
-// Used for problem table / listings
-export type DBProblem = {
-	id: string;
-	title: string;
+/**
+ * DBProblem = Problem + platform metadata
+ * Used by:
+ * - problem table
+ * - listings
+ * - future DB (Firebase / Supabase)
+ */
+export type DBProblem = Problem & {
 	category: string;
-	difficulty: string;
+	difficulty: "Easy" | "Medium" | "Hard";
 	likes: number;
 	dislikes: number;
-	order: number;
 	videoId?: string;
 	link?: string;
 };
