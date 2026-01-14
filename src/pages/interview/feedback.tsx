@@ -1,280 +1,194 @@
 import Head from "next/head";
-import Topbar from "@/components/Topbar/Topbar";
-import useHasMounted from "@/hooks/useHasMounted";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { BsCheck2Circle, BsXCircle } from "react-icons/bs";
 import { InterviewResults } from "@/utils/interview/types";
-import { problems } from "@/utils/problems";
 
-export default function InterviewFeedback() {
-	const hasMounted = useHasMounted();
+export default function InterviewFeedbackPage() {
 	const router = useRouter();
 	const [results, setResults] = useState<InterviewResults | null>(null);
 
 	useEffect(() => {
-		const savedResults = localStorage.getItem("interviewResults");
-		if (!savedResults) {
-			router.push("/interview/setup");
-			return;
-		}
+		const stored = localStorage.getItem("interviewResults");
+		if (!stored) return;
 
-		try {
-			const parsedResults: InterviewResults = JSON.parse(savedResults);
-			setResults(parsedResults);
-		} catch {
-			router.push("/interview/setup");
-		}
-	}, [router]);
+		setResults(JSON.parse(stored));
+	}, []);
 
-	if (!hasMounted || !results) return null;
+	if (!results) return null;
 
-	const { session, totalTimeUsed } = results;
+	const { session } = results;
 
-	const formatTime = (seconds: number): string => {
-		const mins = Math.floor(seconds / 60);
-		const secs = seconds % 60;
-		return `${mins}:${secs < 10 ? "0" + secs : secs}`;
-	};
+	/* ================= TIME ================= */
+	const totalTimeUsedSec = session.problems.reduce(
+		(sum, p) => sum + (p.timeSpent || 0),
+		0
+	);
 
-	// Calculate scores based on actual results
-	const calculateScores = () => {
-		const totalProblems = session.problems.length;
-		const passedProblems = session.problems.filter((p) => p.passed === true).length;
-		const completedProblems = session.problems.filter(
-			(p) => p.status === "completed"
-		).length;
-
-		// Correctness: 40% - based on how many problems passed
-		const correctnessScore = (passedProblems / totalProblems) * 40;
-
-		// Time Management: 20% - based on time efficiency
-		const durationSeconds = session.duration * 60;
-		const timeRatio = totalTimeUsed / durationSeconds;
-		let timeManagementScore = 20;
-		if (timeRatio > 0.95) timeManagementScore = 5; // Used almost all time
-		else if (timeRatio > 0.8) timeManagementScore = 10; // Used most time
-		else if (timeRatio > 0.6) timeManagementScore = 15; // Used moderate time
-		else if (timeRatio > 0.4) timeManagementScore = 18; // Used less time
-		else timeManagementScore = 20; // Used very little time
-
-		// Code Quality: 20% - based on correctness (simplified heuristic)
-		// If all passed problems were solved correctly, assume good quality
-		const codeQualityScore = passedProblems > 0 ? 20 : 10;
-
-		// Communication: 20% - based on interruption response
-		const communicationScore = session.interruptionResponse
-			? session.interruptionResponse.trim().length > 0
-				? 20
-				: 0
-			: 0;
-
-		const totalScore =
-			correctnessScore + timeManagementScore + codeQualityScore + communicationScore;
-
-		return {
-			correctness: Math.round(correctnessScore * 10) / 10,
-			timeManagement: Math.round(timeManagementScore * 10) / 10,
-			codeQuality: Math.round(codeQualityScore * 10) / 10,
-			communication: Math.round(communicationScore * 10) / 10,
-			total: Math.round(totalScore * 10) / 10,
-		};
-	};
-
-	const scores = calculateScores();
-
-	const ScoreBar = ({
-		label,
-		score,
-		maxScore,
-	}: {
-		label: string;
-		score: number;
-		maxScore: number;
-	}) => {
-		const percentage = Math.min(100, (score / maxScore) * 100);
-		return (
-			<div className="space-y-2">
-				<div className="flex justify-between text-sm">
-					<span className="text-gray-400">{label}</span>
-					<span className="text-white font-medium">
-						{score.toFixed(1)}/{maxScore}
-					</span>
-				</div>
-				<div className="w-full bg-dark-fill-3 rounded-full h-3">
-					<div
-						className="bg-brand-orange h-3 rounded-full transition-all"
-						style={{ width: `${percentage}%` }}
-					/>
-				</div>
-			</div>
-		);
-	};
+	const totalTimeMin = Math.max(1, Math.floor(totalTimeUsedSec / 60));
+	const passedCount = session.problems.filter((p) => p.passed).length;
 
 	return (
 		<>
 			<Head>
-				<title>Interview Feedback - evolve</title>
+				<title>Interview Feedback · evolve</title>
 			</Head>
 
-			<main className="bg-dark-layer-2 min-h-screen">
-				<Topbar />
+			<main className="min-h-screen bg-dark-layer-2 text-white px-6 py-10">
+				<div className="max-w-4xl mx-auto space-y-10">
 
-				<div className="max-w-4xl mx-auto px-6 py-12">
-					<h1 className="text-3xl text-white font-bold text-center mb-8">
-						Interview Feedback
-					</h1>
+					<h1 className="text-3xl font-bold">Interview Feedback</h1>
 
-					<div className="bg-dark-layer-1 rounded-lg p-8 space-y-8">
-						{/* Summary */}
-						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-							<div className="bg-dark-fill-3 p-4 rounded-lg">
-								<div className="text-gray-400 text-sm mb-1">Duration</div>
-								<div className="text-white text-xl font-semibold">
-									{session.duration} min
-								</div>
-							</div>
-							<div className="bg-dark-fill-3 p-4 rounded-lg">
-								<div className="text-gray-400 text-sm mb-1">Persona</div>
-								<div className="text-white text-xl font-semibold">
-									{session.persona}
-								</div>
-							</div>
-							<div className="bg-dark-fill-3 p-4 rounded-lg">
-								<div className="text-gray-400 text-sm mb-1">Time Used</div>
-								<div className="text-white text-xl font-semibold">
-									{formatTime(totalTimeUsed)}
-								</div>
-							</div>
-							<div className="bg-dark-fill-3 p-4 rounded-lg">
-								<div className="text-gray-400 text-sm mb-1">Problems</div>
-								<div className="text-white text-xl font-semibold">
-									{session.problems.filter((p) => p.passed === true).length}/
-									{session.problems.length} passed
-								</div>
-							</div>
+					{/* SUMMARY */}
+					<div className="grid grid-cols-2 gap-6">
+						<div className="bg-dark-fill-3 p-4 rounded">
+							<p className="text-gray-400">Persona</p>
+							<p className="text-lg">{session.persona}</p>
 						</div>
 
-						{/* Per-Problem Results */}
-						<div>
-							<h2 className="text-2xl text-white font-bold mb-6">
-								Problem Results
-							</h2>
-							<div className="space-y-4">
-								{session.problems.map((problemData, index) => {
-									const problem = problems[problemData.id];
-									const problemTitle = problem?.title || problemData.id;
-									const problemDifficulty = problem?.difficulty || "Unknown";
-
-									return (
-										<div
-											key={problemData.id}
-											className="bg-dark-fill-3 p-4 rounded-lg"
-										>
-											<div className="flex items-center justify-between mb-2">
-												<div>
-													<div className="text-white font-medium">
-														Problem {index + 1}: {problemTitle}
-													</div>
-													<div className="text-gray-400 text-sm mt-1">
-														{problemDifficulty} • Time:{" "}
-														{formatTime(problemData.timeSpent)}
-													</div>
-												</div>
-												<div className="flex items-center gap-2">
-													{problemData.passed === true ? (
-														<>
-															<BsCheck2Circle className="text-green-500 text-xl" />
-															<span className="text-green-500 font-semibold">
-																Passed
-															</span>
-														</>
-													) : problemData.passed === false ? (
-														<>
-															<BsXCircle className="text-red-500 text-xl" />
-															<span className="text-red-500 font-semibold">
-																Failed
-															</span>
-														</>
-													) : (
-														<span className="text-gray-500 font-semibold">
-															{problemData.status === "skipped"
-																? "Skipped"
-																: "Not Submitted"}
-														</span>
-													)}
-												</div>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						</div>
-
-						{/* Scorecard */}
-						<div>
-							<h2 className="text-2xl text-white font-bold mb-6">Scorecard</h2>
-							<div className="space-y-6">
-								<ScoreBar
-									label="Correctness"
-									score={scores.correctness}
-									maxScore={40}
-								/>
-								<ScoreBar
-									label="Time Management"
-									score={scores.timeManagement}
-									maxScore={20}
-								/>
-								<ScoreBar
-									label="Code Quality"
-									score={scores.codeQuality}
-									maxScore={20}
-								/>
-								<ScoreBar
-									label="Communication"
-									score={scores.communication}
-									maxScore={20}
-								/>
-							</div>
-
-							<div className="mt-8 pt-6 border-t border-dark-layer-2">
-								<div className="flex justify-between items-center">
-									<span className="text-xl text-white font-bold">
-										Total Score
-									</span>
-									<span className="text-3xl text-brand-orange font-bold">
-										{scores.total.toFixed(1)}/100
-									</span>
-								</div>
-							</div>
-						</div>
-
-						{/* Interruption Response */}
-						{session.interruptionResponse && (
-							<div className="bg-dark-fill-3 p-6 rounded-lg">
-								<h3 className="text-xl text-white font-bold mb-4">
-									Your Response to Interviewer Question
-								</h3>
-								<p className="text-gray-300">{session.interruptionResponse}</p>
-							</div>
-						)}
-
-						{/* Actions */}
-						<div className="flex gap-4">
-							<button
-								onClick={() => router.push("/interview/setup")}
-								className="flex-1 bg-brand-orange text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-600 transition"
-							>
-								Try Another Interview
-							</button>
-							<button
-								onClick={() => router.push("/")}
-								className="flex-1 bg-dark-fill-3 text-white px-6 py-3 rounded-lg font-medium hover:bg-dark-fill-2 transition"
-							>
-								Back to Home
-							</button>
+						<div className="bg-dark-fill-3 p-4 rounded">
+							<p className="text-gray-400">Time Used</p>
+							<p className="text-lg">{totalTimeMin} min</p>
 						</div>
 					</div>
+
+					{/* PROBLEM RESULTS */}
+					<div>
+						<h2 className="text-xl font-semibold mb-3">
+							Problem Results ({passedCount}/{session.problems.length})
+						</h2>
+
+						<div className="space-y-3">
+							{session.problems.map((p, i) => (
+								<div
+									key={p.id}
+									className="bg-dark-fill-3 px-4 py-3 rounded"
+								>
+									<div className="flex justify-between">
+										<span>Problem {i + 1}</span>
+										<span
+											className={
+												p.passed ? "text-green-400" : "text-red-400"
+											}
+										>
+											{p.passed ? "Passed" : "Failed"}
+										</span>
+									</div>
+
+									<p className="text-sm text-gray-400 mt-1">
+										Time: {Math.max(1, Math.floor(p.timeSpent / 60))} min
+									</p>
+								</div>
+							))}
+						</div>
+					</div>
+
+					{/* COMMUNICATION RESPONSES */}
+					<div>
+						<h2 className="text-xl font-semibold mb-2">
+							Communication Responses
+						</h2>
+
+						<p className="text-gray-400 text-sm mb-4">
+							Candidate-written explanations captured during the interview.
+							No automated scoring applied.
+						</p>
+
+						<div className="space-y-6">
+							{session.problems.map((p, i) => {
+								const comm = p.communication || {};
+								const hasAny =
+									comm.understanding ||
+									comm.approach ||
+									comm.reflection;
+
+								return (
+									<div key={p.id} className="bg-dark-fill-3 p-4 rounded">
+										<p className="font-semibold mb-2">
+											Problem {i + 1}
+										</p>
+
+										{hasAny ? (
+											<div className="space-y-3">
+												{comm.understanding && (
+													<div>
+														<p className="text-gray-400">
+															Understanding
+														</p>
+														<p className="leading-relaxed">
+															{comm.understanding}
+														</p>
+													</div>
+												)}
+
+												{comm.approach && (
+													<div>
+														<p className="text-gray-400">
+															Approach
+														</p>
+														<p className="leading-relaxed">
+															{comm.approach}
+														</p>
+													</div>
+												)}
+
+												{comm.reflection && (
+													<div>
+														<p className="text-gray-400">
+															Reflection
+														</p>
+														<p className="leading-relaxed">
+															{comm.reflection}
+														</p>
+													</div>
+												)}
+											</div>
+										) : (
+											<p className="text-gray-500 text-sm">
+												No communication response provided.
+											</p>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+
+					{/* COMMUNICATION NOTE */}
+					<div className="bg-dark-fill-3 p-4 rounded">
+						<h2 className="text-xl font-semibold mb-2">
+							Communication Analysis
+						</h2>
+						<p className="text-gray-300 text-sm leading-relaxed">
+							This interview evaluates communication using structured
+							checkpoints:
+							<br />• Problem understanding articulation
+							<br />• Approach & reasoning clarity
+							<br />• Reflection on trade-offs
+							<br /><br />
+							Responses are intentionally preserved for interviewer review or
+							optional AI-assisted analysis.
+							<br />
+							Designed for future integration with Google Gemini / Vertex AI.
+						</p>
+					</div>
+
+					{/* ACTIONS */}
+					<div className="flex gap-4 pt-6">
+						<button
+							onClick={() => router.push("/interview/setup")}
+							className="px-6 py-3 rounded bg-brand-orange hover:bg-orange-600"
+						>
+							Try Another Interview
+						</button>
+
+						<button
+							onClick={() => router.push("/")}
+							className="px-6 py-3 rounded bg-dark-fill-3 hover:bg-dark-fill-2"
+						>
+							Back to Home
+						</button>
+					</div>
+
 				</div>
 			</main>
 		</>

@@ -3,74 +3,67 @@ import { problems } from "@/utils/problems";
 
 const STORAGE_KEY = "interviewSession";
 
-/**
- * Safely select interview problems
- * 1 Easy + 1 Medium (random but deterministic enough)
- */
+/* ================= PROBLEM SELECTION ================= */
+
 const selectInterviewProblems = (): string[] => {
 	const easy = Object.values(problems).filter(p => p.difficulty === "Easy");
 	const medium = Object.values(problems).filter(p => p.difficulty === "Medium");
 
-	if (easy.length === 0 || medium.length === 0) {
-		throw new Error("Not enough problems to create interview");
+	if (!easy.length || !medium.length) {
+		throw new Error("Not enough problems");
 	}
 
-	const pickRandom = (arr: any[]) =>
+	const pick = (arr: any[]) =>
 		arr[Math.floor(Math.random() * arr.length)];
 
-	return [
-		pickRandom(easy).id,
-		pickRandom(medium).id,
-	];
+	return [pick(easy).id, pick(medium).id];
 };
+
+/* ================= SESSION ================= */
 
 export const createInterviewSession = (
 	persona: InterviewPersona,
 	duration: number
 ): InterviewSession => {
-	const problemIds = selectInterviewProblems();
-
-	const problemsList: InterviewProblem[] = problemIds.map((id, index) => ({
-		id,
-		status: index === 0 ? "in-progress" : "pending",
-		timeSpent: 0,
-		passed: null,
-		startTime: index === 0 ? Date.now() : 0,
-	}));
+	const ids = selectInterviewProblems();
 
 	return {
 		mode: "interview",
 		persona,
 		duration,
 		startTime: Date.now(),
-		problems: problemsList,
 		currentProblemIndex: 0,
+		problems: ids.map((id, i) => ({
+			id,
+			status: i === 0 ? "in-progress" : "pending",
+			timeSpent: 0,
+			passed: null,
+			startTime: i === 0 ? Date.now() : 0,
+			endTime: undefined,
+			communication: {},
+		})),
 	};
 };
 
-export const saveSession = (session: InterviewSession): void => {
+export const saveSession = (session: InterviewSession) => {
 	localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 };
 
 export const loadSession = (): InterviewSession | null => {
 	try {
-		const saved = localStorage.getItem(STORAGE_KEY);
-		if (!saved) return null;
-
-		const parsed = JSON.parse(saved);
-		if (!parsed?.problems || !Array.isArray(parsed.problems)) {
-			return null;
-		}
-
-		return parsed as InterviewSession;
+		const raw = localStorage.getItem(STORAGE_KEY);
+		if (!raw) return null;
+		return JSON.parse(raw);
 	} catch {
 		return null;
 	}
 };
 
-export const clearSession = (): void => {
+export const clearSession = () => {
 	localStorage.removeItem(STORAGE_KEY);
 };
+
+/* ================= PROBLEM STATE ================= */
 
 export const updateProblemStatus = (
 	session: InterviewSession,
@@ -78,7 +71,6 @@ export const updateProblemStatus = (
 	updates: Partial<InterviewProblem>
 ): InterviewSession => {
 	const updated = structuredClone(session);
-
 	if (!updated.problems[index]) return updated;
 
 	updated.problems[index] = {
@@ -93,20 +85,59 @@ export const moveToNextProblem = (
 	session: InterviewSession
 ): InterviewSession => {
 	const updated = structuredClone(session);
-	const currentIndex = updated.currentProblemIndex;
+	const i = updated.currentProblemIndex;
 
-	if (updated.problems[currentIndex]) {
-		updated.problems[currentIndex].status = "completed";
-		updated.problems[currentIndex].endTime = Date.now();
+	// close current problem
+	if (updated.problems[i]) {
+		updated.problems[i].status = "completed";
+		updated.problems[i].endTime = Date.now();
 	}
 
-	const nextIndex = currentIndex + 1;
-	if (nextIndex < updated.problems.length) {
-		updated.currentProblemIndex = nextIndex;
-		updated.problems[nextIndex].status = "in-progress";
-		updated.problems[nextIndex].startTime = Date.now();
+	const next = i + 1;
+
+	if (updated.problems[next]) {
+		updated.currentProblemIndex = next;
+		updated.problems[next].status = "in-progress";
+		updated.problems[next].startTime = Date.now();
 	}
 
 	return updated;
 };
-	
+
+/* ================= COMMUNICATION (FIXED) ================= */
+
+/**
+ * ✅ IMPORTANT FIX:
+ * Communication is saved using EXPLICIT problemIndex
+ * so responses never overwrite other problems
+ */
+export const saveCommunicationResponse = (
+	session: InterviewSession,
+	problemIndex: number,
+	type: "understanding" | "approach" | "reflection",
+	response: string
+): InterviewSession => {
+	const updated = structuredClone(session);
+	const cp = updated.problems[problemIndex];
+
+	if (!cp) return updated;
+
+	if (!cp.communication) cp.communication = {};
+	cp.communication[type] = response;
+
+	return updated;
+};
+
+export const getCommunicationProgress = (
+	session: InterviewSession,
+	problemIndex: number
+) => {
+	const cp = session.problems[problemIndex];
+	const comm = cp?.communication || {};
+
+	return {
+		understandingDone: Boolean(comm.understanding),
+		approachDone: Boolean(comm.approach),
+		reflectionDone: Boolean(comm.reflection),
+	};
+};

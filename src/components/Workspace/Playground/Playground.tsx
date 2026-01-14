@@ -28,6 +28,7 @@ export interface ISettings {
 	fontSize: string;
 	settingsModalIsOpen: boolean;
 	dropdownIsOpen: boolean;
+	language?: string;
 }
 
 /* ================= COMPONENT ================= */
@@ -43,10 +44,6 @@ const Playground: React.FC<PlaygroundProps> = ({
 	const [activeTestCaseId, setActiveTestCaseId] = useState(0);
 	const [userCode, setUserCode] = useState(problem.starterCode);
 	const [hasSubmitted, setHasSubmitted] = useState(false);
-	const [isSolved, setIsSolved] = useState(false);
-
-	// 🌍 Language state
-	const [language, setLanguage] = useState<Language>("javascript");
 
 	const router = useRouter();
 	const { pid } = router.query;
@@ -57,29 +54,30 @@ const Playground: React.FC<PlaygroundProps> = ({
 		fontSize,
 		settingsModalIsOpen: false,
 		dropdownIsOpen: false,
+		language: "JavaScript",
 	});
+
+	const language = (settings.language || "JavaScript").toLowerCase() as Language;
+	const isJS = language === "javascript";
 
 	/* ================= HELPERS ================= */
 
-	const isJS = language === "javascript";
-
 	const showLangComingSoon = () => {
 		toast.info("Execution for this language is coming soon.", {
-			position: "top-center",
 			theme: "dark",
 		});
 	};
 
 	const validateUserCode = (): string => {
 		const startIndex = userCode.indexOf(problem.starterFunctionName);
-		if (startIndex === -1) return "Please write your solution before running.";
+		if (startIndex === -1) return "Please write your solution before submitting.";
 
 		const extracted = userCode.slice(startIndex);
 		const stripped = extracted
 			.replace(problem.starterFunctionName, "")
 			.replace(/[{}()\s;]/g, "");
 
-		if (!stripped) return "Please write your solution before running.";
+		if (!stripped) return "Please write your solution before submitting.";
 		return "";
 	};
 
@@ -123,15 +121,16 @@ const Playground: React.FC<PlaygroundProps> = ({
 	/* ================= SUBMIT ================= */
 
 	const handleSubmit = async () => {
-		if (!isJS) {
-			showLangComingSoon();
-			return;
-		}
-
+		// Interview: only once
 		if (isInterviewMode && hasSubmitted) {
 			toast.error("You can only submit once in interview mode", {
 				theme: "dark",
 			});
+			return;
+		}
+
+		if (!isJS) {
+			showLangComingSoon();
 			return;
 		}
 
@@ -158,28 +157,29 @@ const Playground: React.FC<PlaygroundProps> = ({
 
 			success = problemData.handlerFunction(userFn);
 
-			if (success) {
-				toast.success("Submitted successfully!", { theme: "dark" });
-				setSuccess(true);
-				setSolved(true);
-				setIsSolved(true);
+			/* ================= BUILD MODE ================= */
+			if (!isInterviewMode) {
+				if (success) {
+					toast.success("Problem solved 🎉", { theme: "dark" });
 
-				setTimeout(() => {
+					// redirect to build success page
 					router.push({
 						pathname: "/build/success",
 						query: {
-							pid: propProblemId || pid,
+							pid: currentProblemId,
 							title: problem.title,
 						},
 					});
-				}, 500);
-			} else {
-				toast.error("Submission failed.", { theme: "dark" });
+				} else {
+					toast.error("Submission failed.", { theme: "dark" });
+				}
+				return;
 			}
 		} catch {
 			toast.error("Execution failed.", { theme: "dark" });
 		}
 
+		/* ================= INTERVIEW FINALIZE ================= */
 		if (isInterviewMode) {
 			setHasSubmitted(true);
 			onSubmissionComplete?.(success);
@@ -192,10 +192,10 @@ const Playground: React.FC<PlaygroundProps> = ({
 		const currentProblemId = propProblemId || (pid as string);
 		if (!currentProblemId) return;
 
-		const saved = localStorage.getItem(`code-${currentProblemId}-${language}`);
+		const saved = localStorage.getItem(
+			`code-${currentProblemId}-${language}`
+		);
 		setUserCode(saved ? JSON.parse(saved) : problem.starterCode);
-
-		setIsSolved(false);
 		setHasSubmitted(false);
 	}, [pid, propProblemId, problem.starterCode, language]);
 
@@ -210,68 +210,14 @@ const Playground: React.FC<PlaygroundProps> = ({
 		}
 	};
 
-	/* ================= NEXT PROBLEM ================= */
-
-	const handleNextProblem = () => {
-		const nextOrder = problem.order + 1;
-		const next = Object.values(problems).find(
-			(p) => p.order === nextOrder
-		);
-		if (next) router.push(`/problems/${next.id}`);
-		else router.push("/build");
-	};
-
 	/* ================= UI ================= */
 
 	return (
 		<div className="flex flex-col bg-dark-layer-1 h-full relative">
 			<PreferenceNav settings={settings} setSettings={setSettings} />
 
-			{/* SOLVED STRIP (PRACTICE MODE) */}
-			{isSolved && !isInterviewMode && (
-				<div className="bg-dark-fill-2 border-b border-dark-layer-2 px-6 py-4 flex items-center justify-between">
-					<div className="text-green-400 font-medium">✓ Solved</div>
-					<div className="flex gap-4">
-						<button
-							onClick={handleNextProblem}
-							className="text-brand-orange hover:underline"
-						>
-							Next Problem →
-						</button>
-						<button
-							onClick={() => router.push("/build")}
-							className="text-gray-400 hover:text-white"
-						>
-							Back to Build
-						</button>
-					</div>
-				</div>
-			)}
-
-			{/* LANGUAGE BAR */}
-			<div className="flex gap-3 px-5 py-2 border-b border-dark-layer-2 text-sm">
-				{[
-					{ id: "javascript", label: "JavaScript" },
-					{ id: "java", label: "Java" },
-					{ id: "python", label: "Python" },
-					{ id: "cpp", label: "C++" },
-				].map((lang) => (
-					<button
-						key={lang.id}
-						onClick={() => setLanguage(lang.id as Language)}
-						className={`px-3 py-1 rounded-md ${
-							language === lang.id
-								? "bg-dark-fill-2 text-white"
-								: "text-gray-400 hover:text-white"
-						}`}
-					>
-						{lang.label}
-					</button>
-				))}
-			</div>
-
 			<Split
-				className="h-[calc(100vh-130px)]"
+				className="h-[calc(100vh-94px)]"
 				direction="vertical"
 				sizes={[60, 40]}
 				minSize={60}
@@ -283,7 +229,7 @@ const Playground: React.FC<PlaygroundProps> = ({
 						onChange={onChange}
 						extensions={isJS ? [javascript()] : []}
 						style={{ fontSize: settings.fontSize }}
-						readOnly={isSolved || (isInterviewMode && hasSubmitted)}
+						readOnly={isInterviewMode && hasSubmitted}
 					/>
 				</div>
 

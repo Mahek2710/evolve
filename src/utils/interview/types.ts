@@ -6,7 +6,11 @@ export type InterviewPersona =
 	| "Service-Based"
 	| "Senior Engineer";
 
-export type InterviewProblemStatus = "pending" | "in-progress" | "completed" | "skipped";
+export type InterviewProblemStatus =
+	| "pending"
+	| "in-progress"
+	| "completed"
+	| "skipped";
 
 export interface InterviewProblem {
 	id: string;
@@ -15,6 +19,13 @@ export interface InterviewProblem {
 	passed: boolean | null; // null if not submitted
 	startTime: number; // timestamp
 	endTime?: number; // timestamp
+
+	// 🗣️ Communication per problem
+	communication?: {
+		understanding?: string;
+		approach?: string;
+		reflection?: string;
+	};
 }
 
 export interface InterviewSession {
@@ -24,7 +35,6 @@ export interface InterviewSession {
 	startTime: number; // timestamp
 	problems: InterviewProblem[];
 	currentProblemIndex: number;
-	interruptionResponse?: string;
 }
 
 export interface InterviewResults {

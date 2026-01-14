@@ -1,15 +1,41 @@
 import Head from "next/head";
-import ProblemsTable from "@/components/ProblemsTable/ProblemsTable";
 import Topbar from "@/components/Topbar/Topbar";
 import useHasMounted from "@/hooks/useHasMounted";
-import { useState } from "react";
 import { useRouter } from "next/router";
+import { useEffect } from "react";
 
 export default function Home() {
-	const [loadingProblems, setLoadingProblems] = useState(true);
 	const hasMounted = useHasMounted();
 	const router = useRouter();
 
+	// ⌨️ Keyboard shortcuts
+	useEffect(() => {
+		const handleKey = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement;
+
+			// Ignore typing contexts
+			if (
+				target.tagName === "INPUT" ||
+				target.tagName === "TEXTAREA" ||
+				target.isContentEditable
+			) {
+				return;
+			}
+
+			if (e.key.toLowerCase() === "b") {
+				router.push("/build");
+			}
+
+			if (e.key.toLowerCase() === "p") {
+				router.push("/interview/setup");
+			}
+		};
+
+		window.addEventListener("keydown", handleKey);
+		return () => window.removeEventListener("keydown", handleKey);
+	}, [router]);
+
+	// ✅ SAFE early return (after hooks)
 	if (!hasMounted) return null;
 
 	return (
@@ -21,58 +47,56 @@ export default function Home() {
 			<main className="bg-dark-layer-2 min-h-screen">
 				<Topbar />
 
-				{/* Heading */}
-				<h1 className="text-xl text-center text-gray-400 font-medium uppercase mt-8 mb-10">
-					" Quality over Quantity "
-				</h1>
+				<div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-6">
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
 
-				{/* Start Interview Button */}
-				<div className="flex justify-center mb-8">
-					<button
-						onClick={() => router.push("/interview/setup")}
-						className="bg-brand-orange text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-orange-600 transition duration-300 ease-in-out shadow-lg hover:shadow-xl"
-					>
-						Start Interview
-					</button>
-				</div>
-
-				{/* TABLE WRAPPER */}
-				<div className="relative overflow-x-auto mx-auto pb-10">
-					{loadingProblems && (
-						<div className="max-w-[900px] mx-auto w-full animate-pulse">
-							{[...Array(6)].map((_, idx) => (
-								<LoadingSkeleton key={idx} />
-							))}
+						{/* BUILD */}
+						<div
+							onClick={() => router.push("/build")}
+							className="cursor-pointer rounded-2xl bg-dark-layer-1 border border-dark-layer-2 
+							p-10 transition-all hover:-translate-y-1 hover:border-brand-orange"
+						>
+							<h2 className="text-3xl font-bold text-white mb-3">
+								Build
+							</h2>
+							<p className="text-gray-400 text-lg mb-6">
+								Solve. Refine. Get better.
+							</p>
+							<div className="flex items-center justify-between">
+								<span className="text-brand-orange font-medium">
+									Start Building →
+								</span>
+								<span className="text-xs text-gray-500">
+									Press B
+								</span>
+							</div>
 						</div>
-					)}
 
-					<table className="text-sm text-left text-gray-400 w-full max-w-[900px] mx-auto border-collapse">
-						{!loadingProblems && (
-							<thead className="text-xs uppercase border-b border-dark-layer-1">
-								<tr>
-									<th className="px-6 py-3 font-medium">Title</th>
-									<th className="px-6 py-3 font-medium">Difficulty</th>
-									<th className="px-6 py-3 font-medium">Category</th>
-									<th className="px-6 py-3 font-medium">Solution</th>
-								</tr>
-							</thead>
-						)}
+						{/* PERFORM */}
+						<div
+							onClick={() => router.push("/interview/setup")}
+							className="cursor-pointer rounded-2xl bg-dark-layer-1 border border-dark-layer-2 
+							p-10 transition-all hover:-translate-y-1 hover:border-brand-orange"
+						>
+							<h2 className="text-3xl font-bold text-white mb-3">
+								Perform
+							</h2>
+							<p className="text-gray-400 text-lg mb-6">
+								Structured interview practice.
+							</p>
+							<div className="flex items-center justify-between">
+								<span className="text-brand-orange font-medium">
+									Start Interview →
+								</span>
+								<span className="text-xs text-gray-500">
+									Press P
+								</span>
+							</div>
+						</div>
 
-						<ProblemsTable setLoadingProblems={setLoadingProblems} />
-					</table>
+					</div>
 				</div>
 			</main>
 		</>
 	);
 }
-
-const LoadingSkeleton = () => {
-	return (
-		<div className="flex items-center space-x-6 mt-4 px-6">
-			<div className="h-4 w-40 rounded bg-dark-layer-1"></div>
-			<div className="h-4 w-24 rounded bg-dark-layer-1"></div>
-			<div className="h-4 w-28 rounded bg-dark-layer-1"></div>
-			<div className="h-4 w-24 rounded bg-dark-layer-1"></div>
-		</div>
-	);
-};
