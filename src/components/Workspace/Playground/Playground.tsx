@@ -5,15 +5,18 @@ import CodeMirror from "@uiw/react-codemirror";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { javascript } from "@codemirror/lang-javascript";
 import EditorFooter from "./EditorFooter";
-import { Problem } from "@/utils/types/problem";
+import {
+	Problem,
+	StarterCodeMap,
+	StarterFunctionNameMap,
+	SupportedLanguage,
+} from "@/utils/types/problem";
 import { toast } from "react-toastify";
 import { problems } from "@/utils/problems";
 import { useRouter } from "next/router";
 import useLocalStorage from "@/hooks/useLocalStorage";
 
-/* ================= TYPES ================= */
-
-type Language = "javascript" | "java" | "python" | "cpp";
+/* ================= PROPS ================= */
 
 type PlaygroundProps = {
 	problem: Problem;
@@ -31,6 +34,26 @@ export interface ISettings {
 	language?: string;
 }
 
+/* ================= HELPERS ================= */
+
+// Always return string starter code
+function getStarterCode(
+	starterCode: string | StarterCodeMap,
+	language: SupportedLanguage
+): string {
+	return typeof starterCode === "string"
+		? starterCode
+		: starterCode[language];
+}
+
+// Always return string function name
+function getStarterFunctionName(
+	name: string | StarterFunctionNameMap,
+	language: SupportedLanguage
+): string {
+	return typeof name === "string" ? name : name[language];
+}
+
 /* ================= COMPONENT ================= */
 
 const Playground: React.FC<PlaygroundProps> = ({
@@ -41,12 +64,11 @@ const Playground: React.FC<PlaygroundProps> = ({
 	onSubmissionComplete,
 	problemId: propProblemId,
 }) => {
-	const [activeTestCaseId, setActiveTestCaseId] = useState(0);
-	const [userCode, setUserCode] = useState(problem.starterCode);
-	const [hasSubmitted, setHasSubmitted] = useState(false);
-
 	const router = useRouter();
 	const { pid } = router.query;
+
+	const [activeTestCaseId, setActiveTestCaseId] = useState(0);
+	const [hasSubmitted, setHasSubmitted] = useState(false);
 
 	const [fontSize] = useLocalStorage("lcc-fontSize", "16px");
 
@@ -57,8 +79,16 @@ const Playground: React.FC<PlaygroundProps> = ({
 		language: "JavaScript",
 	});
 
-	const language = (settings.language || "JavaScript").toLowerCase() as Language;
-	const isJS = language === "javascript";
+	const selectedLanguage: SupportedLanguage = (
+		settings.language || "JavaScript"
+	).toLowerCase() as SupportedLanguage;
+
+	const isJS = selectedLanguage === "javascript";
+
+	// 🔒 userCode is ALWAYS string now
+	const [userCode, setUserCode] = useState<string>(
+		getStarterCode(problem.starterCode, selectedLanguage)
+	);
 
 	/* ================= HELPERS ================= */
 
@@ -69,25 +99,23 @@ const Playground: React.FC<PlaygroundProps> = ({
 	};
 
 	const validateUserCode = (): string => {
-	// Resolve function name safely
-	const functionName =
-		typeof problem.starterFunctionName === "string"
-			? problem.starterFunctionName
-			: problem.starterFunctionName[selectedLanguage];
+		const functionName = getStarterFunctionName(
+			problem.starterFunctionName,
+			selectedLanguage
+		);
 
-	const startIndex = userCode.indexOf(functionName);
+		const startIndex = userCode.indexOf(functionName);
 
-	if (startIndex === -1)
-		return "Please write your solution before submitting.";
+		if (startIndex === -1)
+			return "Please write your solution before submitting.";
 
-	const extracted = userCode.slice(startIndex);
+		const extracted = userCode.slice(startIndex);
 
-	if (extracted.length < functionName.length + 10)
-		return "Please complete the function implementation.";
+		if (extracted.length < functionName.length + 10)
+			return "Please complete the function implementation.";
 
-	return "";
-};
-
+		return "";
+	};
 
 	/* ================= RUN ================= */
 
@@ -104,9 +132,15 @@ const Playground: React.FC<PlaygroundProps> = ({
 				return;
 			}
 
-			const extractedCode = userCode.slice(
-				userCode.indexOf(problem.starterFunctionName)
+			const functionName = getStarterFunctionName(
+				problem.starterFunctionName,
+				selectedLanguage
 			);
+
+			const extractedCode = userCode.slice(
+				userCode.indexOf(functionName)
+			);
+
 			const userFn = new Function(`return ${extractedCode}`)();
 
 			const currentProblemId = propProblemId || (pid as string);
@@ -129,7 +163,6 @@ const Playground: React.FC<PlaygroundProps> = ({
 	/* ================= SUBMIT ================= */
 
 	const handleSubmit = async () => {
-		// Interview: only once
 		if (isInterviewMode && hasSubmitted) {
 			toast.error("You can only submit once in interview mode", {
 				theme: "dark",
@@ -151,9 +184,15 @@ const Playground: React.FC<PlaygroundProps> = ({
 				return;
 			}
 
-			const extractedCode = userCode.slice(
-				userCode.indexOf(problem.starterFunctionName)
+			const functionName = getStarterFunctionName(
+				problem.starterFunctionName,
+				selectedLanguage
 			);
+
+			const extractedCode = userCode.slice(
+				userCode.indexOf(functionName)
+			);
+
 			const userFn = new Function(`return ${extractedCode}`)();
 
 			const currentProblemId = propProblemId || (pid as string);
@@ -165,12 +204,10 @@ const Playground: React.FC<PlaygroundProps> = ({
 
 			success = problemData.handlerFunction(userFn);
 
-			/* ================= BUILD MODE ================= */
 			if (!isInterviewMode) {
 				if (success) {
 					toast.success("Problem solved 🎉", { theme: "dark" });
 
-					// redirect to build success page
 					router.push({
 						pathname: "/build/success",
 						query: {
@@ -187,7 +224,6 @@ const Playground: React.FC<PlaygroundProps> = ({
 			toast.error("Execution failed.", { theme: "dark" });
 		}
 
-		/* ================= INTERVIEW FINALIZE ================= */
 		if (isInterviewMode) {
 			setHasSubmitted(true);
 			onSubmissionComplete?.(success);
@@ -201,18 +237,25 @@ const Playground: React.FC<PlaygroundProps> = ({
 		if (!currentProblemId) return;
 
 		const saved = localStorage.getItem(
-			`code-${currentProblemId}-${language}`
+			`code-${currentProblemId}-${selectedLanguage}`
 		);
-		setUserCode(saved ? JSON.parse(saved) : problem.starterCode);
+
+		setUserCode(
+			saved
+				? JSON.parse(saved)
+				: getStarterCode(problem.starterCode, selectedLanguage)
+		);
+
 		setHasSubmitted(false);
-	}, [pid, propProblemId, problem.starterCode, language]);
+	}, [pid, propProblemId, problem.starterCode, selectedLanguage]);
 
 	const onChange = (value: string) => {
 		setUserCode(value);
+
 		const currentProblemId = propProblemId || (pid as string);
 		if (currentProblemId) {
 			localStorage.setItem(
-				`code-${currentProblemId}-${language}`,
+				`code-${currentProblemId}-${selectedLanguage}`,
 				JSON.stringify(value)
 			);
 		}
