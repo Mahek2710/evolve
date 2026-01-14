@@ -69,17 +69,25 @@ const Playground: React.FC<PlaygroundProps> = ({
 	};
 
 	const validateUserCode = (): string => {
-		const startIndex = userCode.indexOf(problem.starterFunctionName);
-		if (startIndex === -1) return "Please write your solution before submitting.";
+	// Resolve function name safely
+	const functionName =
+		typeof problem.starterFunctionName === "string"
+			? problem.starterFunctionName
+			: problem.starterFunctionName[selectedLanguage];
 
-		const extracted = userCode.slice(startIndex);
-		const stripped = extracted
-			.replace(problem.starterFunctionName, "")
-			.replace(/[{}()\s;]/g, "");
+	const startIndex = userCode.indexOf(functionName);
 
-		if (!stripped) return "Please write your solution before submitting.";
-		return "";
-	};
+	if (startIndex === -1)
+		return "Please write your solution before submitting.";
+
+	const extracted = userCode.slice(startIndex);
+
+	if (extracted.length < functionName.length + 10)
+		return "Please complete the function implementation.";
+
+	return "";
+};
+
 
 	/* ================= RUN ================= */
 
