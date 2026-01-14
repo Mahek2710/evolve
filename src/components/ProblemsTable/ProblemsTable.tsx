@@ -44,7 +44,7 @@ const ProblemsTable: React.FC<ProblemsTableProps> = ({ setLoadingProblems }) => 
 
 						{/* CATEGORY */}
 						<td className="px-6 py-4 w-[30%] text-gray-400">
-							{problem.category || "—"}
+							{problem.category}
 						</td>
 					</tr>
 				);
@@ -65,12 +65,18 @@ function useGetProblems(
 	useEffect(() => {
 		setLoadingProblems(true);
 
-		const tmp = Object.keys(localProblems)
+		const tmp: DBProblem[] = Object.keys(localProblems)
 			.map((key) => ({
 				id: key,
 				...localProblems[key],
+
+				// ✅ DBProblem REQUIRED FIELDS
+				category: localProblems[key].category || "General",
+				difficulty: localProblems[key].difficulty || "Easy",
+				likes: 0,
+				dislikes: 0,
 			}))
-			.sort((a, b) => a.order - b.order) as DBProblem[];
+			.sort((a, b) => a.order - b.order);
 
 		setProblems(tmp);
 		setLoadingProblems(false);
