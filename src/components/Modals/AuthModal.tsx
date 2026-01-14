@@ -1,3 +1,7 @@
+export async function getServerSideProps() {
+	return { props: {} };
+}
+
 import { authModalState } from "@/atoms/authModalAtom";
 import React, { useEffect, useCallback } from "react";
 import { IoClose } from "react-icons/io5";
