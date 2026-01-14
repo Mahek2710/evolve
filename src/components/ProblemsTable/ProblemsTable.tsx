@@ -27,7 +27,6 @@ const ProblemsTable: React.FC<ProblemsTableProps> = ({ setLoadingProblems }) => 
 							idx % 2 === 1 ? "bg-dark-layer-1/40" : ""
 						}`}
 					>
-						{/* TITLE */}
 						<td className="px-6 py-4 font-medium text-white w-[50%]">
 							<Link
 								href={`/problems/${problem.id}`}
@@ -37,12 +36,10 @@ const ProblemsTable: React.FC<ProblemsTableProps> = ({ setLoadingProblems }) => 
 							</Link>
 						</td>
 
-						{/* DIFFICULTY */}
 						<td className={`px-6 py-4 w-[20%] ${difficultyColor}`}>
 							{problem.difficulty}
 						</td>
 
-						{/* CATEGORY */}
 						<td className="px-6 py-4 w-[30%] text-gray-400">
 							{problem.category}
 						</td>
@@ -66,16 +63,19 @@ function useGetProblems(
 		setLoadingProblems(true);
 
 		const tmp: DBProblem[] = Object.keys(localProblems)
-			.map((key) => ({
-				id: key,
-				...localProblems[key],
+			.map((key) => {
+				// ✅ remove existing `id` before spreading to avoid TS duplicate error
+				const { id: _ignored, ...rest } = localProblems[key];
 
-				// ✅ DBProblem REQUIRED FIELDS
-				category: localProblems[key].category || "General",
-				difficulty: localProblems[key].difficulty || "Easy",
-				likes: 0,
-				dislikes: 0,
-			}))
+				return {
+					...rest,
+					id: key,
+					category: rest.category || "General",
+					difficulty: rest.difficulty || "Easy",
+					likes: 0,
+					dislikes: 0,
+				};
+			})
 			.sort((a, b) => a.order - b.order);
 
 		setProblems(tmp);

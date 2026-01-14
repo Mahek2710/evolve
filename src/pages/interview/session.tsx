@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import Workspace from "@/components/Workspace/Workspace";
 import InterviewTimer from "@/components/Interview/InterviewTimer";
@@ -33,6 +33,75 @@ export default function InterviewSessionPage() {
 		useState<"understanding" | "approach" | "reflection" | null>(null);
 
 	const [hasRunOnce, setHasRunOnce] = useState(false);
+
+	/* ================= FINISH ================= */
+	const finishInterview = useCallback(
+		(finalSession: InterviewSession) => {
+			const totalTimeUsed = finalSession.problems.reduce(
+				(sum, p) => sum + (p.timeSpent || 0),
+				0
+			);
+
+			localStorage.setItem(
+				"interviewResults",
+				JSON.stringify({
+					session: finalSession,
+					endTime: Date.now(),
+					totalTimeUsed,
+				})
+			);
+
+			clearSession();
+			router.replace("/interview/feedback");
+		},
+		[router]
+	);
+
+	/* ================= TIME UP ================= */
+	const handleTimeUp = useCallback(
+		(s: InterviewSession) => {
+			const updated = structuredClone(s);
+
+			updated.problems.forEach((p) => {
+				if (p.status !== "completed") {
+					p.status = "completed";
+					p.passed = false;
+					p.endTime = Date.now();
+				}
+			});
+
+			saveSession(updated);
+			finishInterview(updated);
+		},
+		[finishInterview]
+	);
+
+	/* ================= LOAD PROBLEM ================= */
+	const loadProblem = useCallback(
+		(s: InterviewSession) => {
+			const idx = s.currentProblemIndex;
+			const p = s.problems[idx];
+			if (!p) {
+				finishInterview(s);
+				return;
+			}
+
+			const full = problems[p.id];
+			if (!full) {
+				finishInterview(s);
+				return;
+			}
+
+			setCurrentProblem(full);
+			setHasRunOnce(false);
+
+			const progress = getCommunicationProgress(s, idx);
+			if (!progress.understandingDone) {
+				setActiveQuestion("understanding");
+			}
+		},
+		[finishInterview]
+	);
 
 	/* ================= INIT ================= */
 	useEffect(() => {
@@ -68,31 +137,7 @@ export default function InterviewSessionPage() {
 		}, 1000);
 
 		return () => clearInterval(interval);
-	}, []);
-
-	/* ================= LOAD PROBLEM ================= */
-	const loadProblem = (s: InterviewSession) => {
-		const idx = s.currentProblemIndex;
-		const p = s.problems[idx];
-		if (!p) {
-			finishInterview(s);
-			return;
-		}
-
-		const full = problems[p.id];
-		if (!full) {
-			finishInterview(s);
-			return;
-		}
-
-		setCurrentProblem(full);
-		setHasRunOnce(false);
-
-		const progress = getCommunicationProgress(s, idx);
-		if (!progress.understandingDone) {
-			setActiveQuestion("understanding");
-		}
-	};
+	}, [router, loadProblem, handleTimeUp]);
 
 	/* ================= APPROACH POPUP ================= */
 	useEffect(() => {
@@ -161,42 +206,6 @@ export default function InterviewSessionPage() {
 		saveSession(updated);
 		setSession(updated);
 		setActiveQuestion(null);
-	};
-
-	/* ================= TIME UP ================= */
-	const handleTimeUp = (s: InterviewSession) => {
-		const updated = structuredClone(s);
-
-		updated.problems.forEach((p) => {
-			if (p.status !== "completed") {
-				p.status = "completed";
-				p.passed = false;
-				p.endTime = Date.now();
-			}
-		});
-
-		saveSession(updated);
-		finishInterview(updated);
-	};
-
-	/* ================= FINISH ================= */
-	const finishInterview = (finalSession: InterviewSession) => {
-		const totalTimeUsed = finalSession.problems.reduce(
-			(sum, p) => sum + (p.timeSpent || 0),
-			0
-		);
-
-		localStorage.setItem(
-			"interviewResults",
-			JSON.stringify({
-				session: finalSession,
-				endTime: Date.now(),
-				totalTimeUsed,
-			})
-		);
-
-		clearSession();
-		router.replace("/interview/feedback");
 	};
 
 	if (!hasMounted || !session || !currentProblem) return null;
